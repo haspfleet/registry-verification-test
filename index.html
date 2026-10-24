@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HASP Fleet Registry — Test</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f5f8;color:#172536}
+header{background:#102b46;color:white;padding:24px 16px;text-align:center}
+header h1{margin:0 0 8px;font-size:25px}
+header p{margin:0;color:#d5e2ef}
+main{max-width:1100px;margin:24px auto;padding:0 14px}
+.panel{background:white;border-radius:12px;padding:20px;margin-bottom:18px;box-shadow:0 2px 10px #0000000d}
+h2{margin-top:0;font-size:20px}
+input,button{font:inherit;padding:11px;border-radius:7px}
+input{border:1px solid #bdc9d5;width:100%;min-width:0}
+button{border:0;background:#174e79;color:white;cursor:pointer}
+button:hover{background:#0f3858}
+button.secondary{background:#566779}
+button.danger{background:#b52b36}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.row input{flex:1}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fields label{display:block;font-size:13px;font-weight:bold}
+.fields input{margin-top:6px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.status{margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.error{color:#b42332}
+.success{color:#167344}
+.table-wrap{overflow-x:auto;margin-top:14px}
+table{width:100%;border-collapse:collapse;white-space:nowrap}
+th,td{padding:11px 9px;border-bottom:1px solid #e1e7ed;text-align:left}
+th{background:#edf2f6}
+td button{padding:7px 10px;margin-right:4px}
+.muted{color:#617184;font-size:13px}
+.hidden{display:none!important}
+@media(max-width:600px){.fields{grid-template-columns:1fr}.panel{padding:15px}header h1{font-size:21px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>HASP Fleet Registry</h1>
+  <p>Test Environment — Fleet Management / Διαχείριση Στόλου</p>
+</header>
+
+<main>
+  <section class="panel" id="loginPanel">
+    <h2>Administrator Login / Σύνδεση Διαχειριστή</h2>
+    <p class="muted">Χρησιμοποίησε τον ξεχωριστό κωδικό ADMIN_PASSWORD που έχεις ορίσει στο test Worker.</p>
+    <div class="row">
+      <input id="adminPassword" type="password" autocomplete="current-password"
+             placeholder="Admin password" aria-label="Admin password">
+      <button id="loginBtn">Σύνδεση / Login</button>
+    </div>
+    <div id="loginStatus" class="status" role="status"></div>
+  </section>
+
+  <section class="panel hidden" id="fleetPanel">
+    <div class="row" style="justify-content:space-between">
+      <h2>Fleet / Στόλος</h2>
+      <button id="logoutBtn" class="secondary">Αποσύνδεση / Logout</button>
+    </div>
+    <div class="row">
+      <input id="searchInput" type="search"
+             placeholder="Αναζήτηση ID, ICAO, Call Sign ή Plate..."
+             aria-label="Αναζήτηση στόλου">
+      <button id="searchBtn">Αναζήτηση</button>
+      <button id="allBtn" class="secondary">Όλα</button>
+      <button id="csvBtn" class="secondary">Export CSV</button>
+    </div>
+    <div id="fleetStatus" class="status" role="status"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>ICAO</th><th>Call Sign</th><th>Plate</th><th>Ενέργειες</th>
+          </tr>
+        </thead>
+        <tbody id="fleetBody"></tbody>
+      </table>
+    </div>
+    <p class="muted">Η λίστα εμφανίζει έως 500 εγγραφές ανά αναζήτηση.</p>
+  </section>
+
+  <section class="panel hidden" id="editPanel">
+    <h2 id="formTitle">Προσθήκη οχήματος / Add vehicle</h2>
+    <form id="vehicleForm">
+      <div class="fields">
+        <label>ID
+          <input id="vehicleId" required maxlength="100" autocomplete="off">
+        </label>
+        <label>ICAO
+          <input id="icao" maxlength="100" autocomplete="off">
+        </label>
+        <label>Call Sign
+          <input id="callSign" maxlength="100" autocomplete="off">
+        </label>
+        <label>Plate
+          <input id="plate" maxlength="100" autocomplete="off">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="saveBtn" type="submit">Αποθήκευση / Save</button>
+        <button id="cancelBtn" type="button" class="secondary">Ακύρωση</button>
+      </div>
+      <div id="formStatus" class="status" role="status"></div>
+    </form>
+  </section>
+
+  <section class="panel hidden" id="addPanel">
+    <button id="addBtn">+ Προσθήκη οχήματος / Add vehicle</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // TEST API ONLY — do not change this to the production Worker.
+  const API = "https://haspfleet-registry-test-api.ek-hcaa.workers.dev";
+
+  const $ = id => document.getElementById(id);
+  let adminPassword = "";
+  let vehicles = [];
+  let editing = false;
+  let originalId = "";
+
+  function status(id, message, kind = "") {
+    const el = $(id);
+    el.textContent = message;
+    el.className = "status " + kind;
+  }
+
+  async function apiGet(query = "") {
+    const response = await fetch(
+      API + "/fleet" + (query ? "?q=" + encodeURIComponent(query) : ""),
+      { headers: { "X-Admin-Password": adminPassword } }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "HTTP " + response.status);
+    return data;
+  }
+
+  async function apiPost(payload) {
+    const response = await fetch(API + "/fleet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, password: adminPassword })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || "HTTP " + response.status);
+    }
+    return data;
+  }
+
+  function showLoggedIn() {
+    $("loginPanel").classList.add("hidden");
+    $("fleetPanel").classList.remove("hidden");
+    $("addPanel").classList.remove("hidden");
+    loadFleet();
+  }
+
+  function logout() {
+    adminPassword = "";
+    vehicles = [];
+    $("adminPassword").value = "";
+    $("fleetBody").replaceChildren();
+    $("fleetPanel").classList.add("hidden");
+    $("editPanel").classList.add("hidden");
+    $("addPanel").classList.add("hidden");
+    $("loginPanel").classList.remove("hidden");
+    status("loginStatus", "Έγινε αποσύνδεση.");
+  }
+
+  async function login() {
+    const candidate = $("adminPassword").value;
+    if (!candidate) {
+      status("loginStatus", "Πληκτρολόγησε τον κωδικό διαχειριστή.", "error");
+      return;
+    }
+
+    adminPassword = candidate;
+    $("loginBtn").disabled = true;
+    status("loginStatus", "Έλεγχος σύνδεσης...");
+
+    try {
+      await apiGet();
+      status("loginStatus", "");
+      showLoggedIn();
+    } catch (error) {
+      adminPassword = "";
+      status("loginStatus",
+        "Η σύνδεση απέτυχε: " + error.message +
+        "\nΈλεγξε τον κωδικό και τη διαθεσιμότητα του test Worker.", "error");
+    } finally {
+      $("loginBtn").disabled = false;
+    }
+  }
+
+  function cell(value) {
+    const td = document.createElement("td");
+    td.textContent = value == null ? "" : String(value);
+    return td;
+  }
+
+  function renderFleet() {
+    const body = $("fleetBody");
+    body.replaceChildren();
+
+    for (const vehicle of vehicles) {
+      const tr = document.createElement("tr");
+      tr.append(
+        cell(vehicle.id),
+        cell(vehicle.icao),
+        cell(vehicle.call_sign),
+        cell(vehicle.plate)
+      );
+
+      const actions = document.createElement("td");
+      const edit = document.createElement("button");
+      edit.textContent = "Επεξεργασία";
+      edit.addEventListener("click", () => openEdit(vehicle));
+
+      const del = document.createElement("button");
+      del.textContent = "Διαγραφή";
+      del.className = "danger";
+      del.addEventListener("click", () => deleteVehicle(vehicle));
+
+      actions.append(edit, del);
+      tr.append(actions);
+      body.append(tr);
+    }
+
+    status("fleetStatus", "Εγγραφές που εμφανίζονται: " + vehicles.length,
+      "success");
+  }
+
+  async function loadFleet(query = "") {
+    $("searchBtn").disabled = true;
+    status("fleetStatus", "Φόρτωση στόλου...");
+    try {
+      const data = await apiGet(query);
+      vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+      renderFleet();
+    } catch (error) {
+      status("fleetStatus", "Σφάλμα φόρτωσης: " + error.message, "error");
+      if (/unauthorized/i.test(error.message)) logout();
+    } finally {
+      $("searchBtn").disabled = false;
+    }
+  }
+
+  function openAdd() {
+    editing = false;
+    originalId = "";
+    $("vehicleForm").reset();
+    $("vehicleId").readOnly = false;
+    $("formTitle").textContent = "Προσθήκη οχήματος / Add vehicle";
+    status("formStatus", "");
+    $("editPanel").classList.remove("hidden");
+    $("vehicleId").focus();
+    $("editPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openEdit(vehicle) {
+    editing = true;
+    originalId = String(vehicle.id ?? "");
+    $("vehicleId").value = originalId;
+    $("vehicleId").readOnly = true;
+    $("icao").value = vehicle.icao ?? "";
+    $("callSign").value = vehicle.call_sign ?? "";
+    $("plate").value = vehicle.plate ?? "";
+    $("formTitle").textContent = "Επεξεργασία οχήματος / Edit vehicle";
+    status("formStatus", "");
+    $("editPanel").classList.remove("hidden");
+    $("editPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function saveVehicle(event) {
+    event.preventDefault();
+
+    const payload = {
+      action: editing ? "edit" : "add",
+      id: $("vehicleId").value.trim(),
+      icao: $("icao").value.trim(),
+      call_sign: $("callSign").value.trim(),
+      plate: $("plate").value.trim()
+    };
+
+    if (!payload.id) {
+      status("formStatus", "Το ID είναι υποχρεωτικό.", "error");
+      return;
+    }
+
+    if (editing) payload.original_id = originalId;
+
+    $("saveBtn").disabled = true;
+    status("formStatus", "Αποθήκευση...");
+
+    try {
+      await apiPost(payload);
+      status("formStatus", "Η ενέργεια ολοκληρώθηκε.", "success");
+      $("editPanel").classList.add("hidden");
+      await loadFleet($("searchInput").value.trim());
+    } catch (error) {
+      status("formStatus",
+        "Η αποθήκευση απέτυχε: " + error.message, "error");
+    } finally {
+      $("saveBtn").disabled = false;
+    }
+  }
+
+  async function deleteVehicle(vehicle) {
+    const id = String(vehicle.id ?? "");
+    if (!confirm("Να διαγραφεί το όχημα με ID " + id + ";")) return;
+    if (!confirm("Τελική επιβεβαίωση: η διαγραφή μπορεί να είναι μόνιμη. Συνέχεια;")) return;
+
+    try {
+      await apiPost({ action: "delete", id });
+      status("fleetStatus", "Η διαγραφή ολοκληρώθηκε.", "success");
+      await loadFleet($("searchInput").value.trim());
+    } catch (error) {
+      status("fleetStatus", "Η διαγραφή απέτυχε: " + error.message, "error");
+    }
+  }
+
+  function exportCsv() {
+    if (!vehicles.length) {
+      status("fleetStatus", "Δεν υπάρχουν εγγραφές για εξαγωγή.", "error");
+      return;
+    }
+
+    const columns = [
+      ["id", "ID"],
+      ["icao", "ICAO"],
+      ["call_sign", "Call Sign"],
+      ["plate", "Plate"]
+    ];
+
+    const escapeCsv = value =>
+      '"' + String(value ?? "").replace(/"/g, '""') + '"';
+
+    const lines = [
+      columns.map(([, label]) => escapeCsv(label)).join(","),
+      ...vehicles.map(vehicle =>
+        columns.map(([key]) => escapeCsv(vehicle[key])).join(",")
+      )
+    ];
+
+    const blob = new Blob(
+      ["\uFEFF" + lines.join("\r\n")],
+      { type: "text/csv;charset=utf-8;" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "hasp-fleet-test.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  $("loginBtn").addEventListener("click", login);
+  $("adminPassword").addEventListener("keydown", event => {
+    if (event.key === "Enter") login();
+  });
+  $("logoutBtn").addEventListener("click", logout);
+  $("searchBtn").addEventListener("click",
+    () => loadFleet($("searchInput").value.trim()));
+  $("searchInput").addEventListener("keydown", event => {
+    if (event.key === "Enter") loadFleet($("searchInput").value.trim());
+  });
+  $("allBtn").addEventListener("click", () => {
+    $("searchInput").value = "";
+    loadFleet();
+  });
+  $("csvBtn").addEventListener("click", exportCsv);
+  $("addBtn").addEventListener("click", openAdd);
+  $("cancelBtn").addEventListener("click",
+    () => $("editPanel").classList.add("hidden"));
+  $("vehicleForm").addEventListener("submit", saveVehicle);
+})();
+</script>
+</body>
+</html>
