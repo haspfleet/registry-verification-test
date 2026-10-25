@@ -300,8 +300,8 @@ footer .footer-subtitle {
         </div>
         <div>
           <label for="plate">Plate</label>
-          <input id="plate" required pattern="[A-Za-z0-9]+"
-                 title="Μόνο κεφαλαία/πεζά λατινικά γράμματα και ψηφία">
+         <input id="plate" required pattern="[A-Za-z0-9]+([ -][A-Za-z0-9]+)?"
+       title="Λατινικά γράμματα και ψηφία, προαιρετικά με ένα κενό ή μία παύλα">
         </div>
       </div>
       <div id="editMessage" class="message" role="status"></div>
