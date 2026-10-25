@@ -89,7 +89,9 @@ td button{padding:7px 10px;margin-right:4px}
     <form id="vehicleForm">
       <div class="fields">
         <label>ID
-          <input id="vehicleId" required maxlength="100" autocomplete="off">
+          
+<input id="vehicleId" required minlength="3" maxlength="3" pattern="[CDEFHJKLMNPRTWXYcdefhjkmnprtwxy347]{3}" autocomplete="off">
+
         </label>
         <label>ICAO
           <input id="icao" maxlength="100" autocomplete="off">
@@ -253,17 +255,30 @@ td button{padding:7px 10px;margin-right:4px}
     }
   }
 
+  
   function openAdd() {
     editing = false;
     originalId = "";
     $("vehicleForm").reset();
-    $("vehicleId").readOnly = false;
+
+    const alphabet = "CDEFHJKLMNPRTWXYcdefhjkmnprtwxy347";
+    const bytes = crypto.getRandomValues(new Uint8Array(3));
+    let previewId = "";
+
+    for (const byte of bytes) {
+      previewId += alphabet[byte % alphabet.length];
+    }
+
+    $("vehicleId").value = previewId;
+    $("vehicleId").readOnly = true;
+
     $("formTitle").textContent = "Προσθήκη οχήματος / Add vehicle";
     status("formStatus", "");
     $("editPanel").classList.remove("hidden");
     $("vehicleId").focus();
     $("editPanel").scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
 
   function openEdit(vehicle) {
     editing = true;
@@ -279,6 +294,7 @@ td button{padding:7px 10px;margin-right:4px}
     $("editPanel").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  
   async function saveVehicle(event) {
     event.preventDefault();
 
@@ -290,28 +306,39 @@ td button{padding:7px 10px;margin-right:4px}
       plate: $("plate").value.trim()
     };
 
-    if (!payload.id) {
-      status("formStatus", "Το ID είναι υποχρεωτικό.", "error");
-      return;
-    }
-
     if (editing) payload.original_id = originalId;
 
     $("saveBtn").disabled = true;
     status("formStatus", "Αποθήκευση...");
 
     try {
-      await apiPost(payload);
-      status("formStatus", "Η ενέργεια ολοκληρώθηκε.", "success");
+      const result = await apiPost(payload);
+
+      if (!editing && result.id) {
+        $("vehicleId").value = result.id;
+      }
+
+      status(
+        "formStatus",
+        editing
+          ? "Η ενημέρωση ολοκληρώθηκε."
+          : "Το όχημα προστέθηκε με ID " + (result.id || payload.id) + ".",
+        "success"
+      );
+
       $("editPanel").classList.add("hidden");
       await loadFleet($("searchInput").value.trim());
     } catch (error) {
-      status("formStatus",
-        "Η αποθήκευση απέτυχε: " + error.message, "error");
+      status(
+        "formStatus",
+        "Η αποθήκευση απέτυχε: " + error.message,
+        "error"
+      );
     } finally {
       $("saveBtn").disabled = false;
     }
   }
+
 
   async function deleteVehicle(vehicle) {
     const id = String(vehicle.id ?? "");
