@@ -139,21 +139,65 @@ th { background: #eaf2f9; color: var(--navy); }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 14px;
 }
+
 footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 12px;
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  padding: 14px 18px 20px;
+  padding: 14px 18px 10px;
   color: #123d68;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   text-shadow: 0 1px 2px #fff;
 }
-footer .right { text-align: right; }
-.small { font-size: 13px; color: #526579; }
-@media (orientation: landscape) {
-  body { background-image: url("BG-4.png"); }
+
+footer .right {
+  text-align: right;
 }
+
+footer .footer-title {
+  font-weight: 700;
+}
+
+footer .footer-subtitle {
+  font-weight: 400;
+}
+
+.small {
+  font-size: 13px;
+  color: #526579;
+}
+
+@media (orientation: landscape) {
+  body {
+    background-image: url("BG-4.png");
+  }
+}
+
+@media (max-width: 600px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  footer {
+    font-size: 10px;
+    padding-inline: 10px;
+    gap: 10px;
+  }
+
+  .vehicle-card dl {
+    grid-template-columns: 105px 1fr;
+  }
+}
+
 @media (max-width: 600px) {
   .panel { padding: 16px; }
   .form-grid { grid-template-columns: 1fr; }
@@ -269,16 +313,18 @@ footer .right { text-align: right; }
   </section>
 </main>
 
+
 <footer>
   <div>
-    HELLENIC AVIATION SERVICE PROVIDER<br>
-    Surveillance &amp; Data Processing Sys Division
+    <span class="footer-title">HELLENIC AVIATION SERVICE PROVIDER</span><br>
+    <span class="footer-subtitle">Surveillance &amp; Data Processing Sys Division</span>
   </div>
   <div class="right">
-    ΥΠΗΡΕΣΙΑ ΠΟΛΙΤΙΚΗΣ ΑΕΡΟΠΟΡΙΑΣ<br>
-    Τμήμα Συστ. Επιτήρησης &amp; Επεξεργασίας Δεδομένων
+    <span class="footer-title">ΥΠΗΡΕΣΙΑ ΠΟΛΙΤΙΚΗΣ ΑΕΡΟΠΟΡΙΑΣ</span><br>
+    <span class="footer-subtitle">Τμήμα Συστ. Επιτήρησης &amp; Επεξεργασίας Δεδομένων</span>
   </div>
 </footer>
+
 
 <script>
 "use strict";
