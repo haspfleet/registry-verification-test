@@ -830,47 +830,81 @@ $("printQrLabelsButton").addEventListener("click", () => {
     <html>
     <head>
       <title>HASP QR Labels</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 10px;
-        }
-        .label {
-          width: 280px;
-          box-sizing: border-box;
-          padding: 10px;
-          margin: 0 auto 12px;
-          border: 1px solid #ccc;
-          text-align: center;
-          page-break-inside: avoid;
-          break-inside: avoid;
-        }
-        .header {
-          background: #174a8b;
-          color: white;
-          font-weight: bold;
-          padding: 8px;
-          margin-bottom: 10px;
-        }
-        .qr img {
-          width: 180px;
-          height: 180px;
-        }
-        .details {
-          text-align: center;
-          margin-top: 10px;
-          line-height: 1.4;
-          overflow-wrap: anywhere;
-        }
-        @media print {
-          body { margin: 0; }
-          .label { margin-bottom: 8px; }
-        }
-      </style>
+      
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+  .label-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4mm;
+    align-items: start;
+  }
+
+  .label {
+    width: 100%;
+    min-width: 0;
+    padding: 3mm;
+    margin: 0;
+    border: 1px solid #ccc;
+    text-align: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    overflow-wrap: anywhere;
+  }
+
+  .header {
+    background: #174a8b;
+    color: white;
+    font-weight: bold;
+    font-size: 10pt;
+    padding: 2mm;
+    margin-bottom: 2mm;
+    overflow-wrap: anywhere;
+  }
+
+  .qr {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .qr img {
+    display: block;
+    width: 30mm;
+    height: 30mm;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  .details {
+    text-align: center;
+    margin-top: 2mm;
+    font-size: 9pt;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+</style>
+
     </head>
     <body>
-      ${labels}
-      <script>
+  <div class="label-grid">
+    ${labels}
+  </div>
+  <script>
         window.onload = () => {
           window.focus();
           window.print();
