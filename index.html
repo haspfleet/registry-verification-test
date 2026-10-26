@@ -779,6 +779,117 @@ $("exportButton").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+$("printQrLabelsButton").addEventListener("click", () => {
+  if (role !== "admin") return;
+
+  const list = filteredVehicles();
+
+  if (!list.length) {
+    alert("Δεν υπάρχουν οχήματα για εκτύπωση.");
+    return;
+  }
+
+  if (typeof window.qrcode !== "function") {
+    alert("Το QR engine δεν είναι διαθέσιμο.");
+    return;
+  }
+
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    alert("Παρακαλώ επίτρεψε τα pop-ups για την εκτύπωση.");
+    return;
+  }
+
+  const labels = list.map(v => {
+    const qrText =
+      "https://haspfleet.github.io/registry-verification-test/?id=" +
+      encodeURIComponent(v.id);
+
+    const code = window.qrcode(0, "M");
+    code.addData(qrText);
+    code.make();
+
+    const qrHtml = code.createImgTag(5, 8);
+
+    return `
+      <div class="label">
+        <div class="header">ID: ${escapeHtml(v.id)}</div>
+        <div class="qr">${qrHtml}</div>
+        <div class="details">
+          <div>Plate: ${escapeHtml(v.plate || "")}</div>
+          <div>Call Sign: ${escapeHtml(v.callsign || "")}</div>
+          <div>ICAO: ${escapeHtml(v.icao || "")}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+    <head>
+      <title>HASP QR Labels</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 10px;
+        }
+        .label {
+          width: 280px;
+          box-sizing: border-box;
+          padding: 10px;
+          margin: 0 auto 12px;
+          border: 1px solid #ccc;
+          text-align: center;
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        .header {
+          background: #174a8b;
+          color: white;
+          font-weight: bold;
+          padding: 8px;
+          margin-bottom: 10px;
+        }
+        .qr img {
+          width: 180px;
+          height: 180px;
+        }
+        .details {
+          text-align: center;
+          margin-top: 10px;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+        }
+        @media print {
+          body { margin: 0; }
+          .label { margin-bottom: 8px; }
+        }
+      </style>
+    </head>
+    <body>
+      ${labels}
+      <script>
+        window.onload = () => {
+          window.focus();
+          window.print();
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+});
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 $("logoutVehicle").addEventListener("click", logout);
 $("logoutFleet").addEventListener("click", logout);
 
