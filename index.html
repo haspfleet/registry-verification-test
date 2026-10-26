@@ -485,7 +485,10 @@ async function loadVehicle(id, fromFleet) {
   }
 }
 
+
 function renderVehicle(v) {
+  const container = document.createElement("div");
+
   const dl = document.createElement("dl");
   const fields = [
     ["Vehicle ID", v.id],
@@ -493,6 +496,7 @@ function renderVehicle(v) {
     ["Call Sign", v.callsign],
     ["Plate", v.plate]
   ];
+
   for (const [label, value] of fields) {
     const dt = document.createElement("dt");
     const dd = document.createElement("dd");
@@ -500,8 +504,83 @@ function renderVehicle(v) {
     dd.textContent = value;
     dl.append(dt, dd);
   }
-  $("vehicleDetails").replaceChildren(dl);
+
+  container.appendChild(dl);
+
+  const label = document.createElement("div");
+  label.id = "vehicleQrLabel";
+  label.style.cssText =
+    "width:280px;max-width:100%;margin:16px auto;padding:10px;" +
+    "border:1px solid #ccc;text-align:center;box-sizing:border-box;";
+
+  const header = document.createElement("div");
+  header.textContent = "ID: " + v.id;
+  header.style.cssText =
+    "background:#174a8b;color:white;font-weight:bold;padding:8px;margin-bottom:10px;";
+
+  const qr = document.createElement("div");
+  qr.style.cssText = "display:flex;justify-content:center;";
+
+  const qrText =
+    "https://haspfleet.github.io/registry-verification-test/?id=" +
+    encodeURIComponent(v.id);
+
+  if (typeof window.qrcode === "function") {
+    const code = window.qrcode(0, "M");
+    code.addData(qrText);
+    code.make();
+
+    const qrImage = document.createElement("div");
+    qrImage.innerHTML = code.createImgTag(5, 8);
+    const img = qrImage.querySelector("img");
+
+    if (img) {
+      img.alt = "QR " + v.id;
+      img.style.cssText = "width:180px;height:180px;";
+      qr.appendChild(img);
+    }
+  }
+
+  const details = document.createElement("div");
+  details.style.cssText =
+    "text-align:left;margin-top:10px;line-height:1.4;";
+
+  for (const [name, value] of [
+    ["Plate", v.plate],
+    ["Call Sign", v.callsign],
+    ["ICAO", v.icao]
+  ]) {
+    const row = document.createElement("div");
+    row.textContent = name + ": " + (value || "");
+    details.appendChild(row);
+  }
+
+  const printButton = document.createElement("button");
+  printButton.textContent = "Print QR label";
+  printButton.style.cssText = "margin-top:10px;";
+  printButton.addEventListener("click", () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow pop-ups to print the QR label.");
+      return;
+    }
+
+    printWindow.document.write(
+      "<!doctype html><html><head><title>QR Label</title>" +
+      "<style>body{font-family:Arial,sans-serif;margin:0;padding:10px}" +
+      "@media print{body{margin:0}}</style></head><body>" +
+      label.outerHTML + "</body></html>"
+    );
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  });
+
+  label.append(header, qr, details);
+  container.append(label, printButton);
+  $("vehicleDetails").replaceChildren(container);
 }
+
 
 $("backToFleet").addEventListener("click", () => {
   show("vehiclePanel", false);
