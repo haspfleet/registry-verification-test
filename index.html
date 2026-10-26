@@ -594,6 +594,7 @@ async function loadFleet() {
   show("editPanel", false);
   show("fleetPanel", true);
   show("addButton", role === "admin");
+  show("printQrLabelsButton", role === "admin");
   show("exportButton", role === "admin" || role === "supervisor");
   $("fleetHeading").textContent =
     role === "admin" ? "Διαχείριση Στόλου / Admin" : "Στόλος / Supervisor";
