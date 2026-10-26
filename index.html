@@ -657,9 +657,13 @@ $("vehicleForm").addEventListener("submit", async event => {
   }
 });
 
+
 async function deleteVehicle(v) {
   if (role !== "admin") return;
+
   if (!confirm(`Να διαγραφεί το όχημα ${v.id} (${v.callsign});`)) return;
+
+  if (!confirm("Τελική επιβεβαίωση: η διαγραφή μπορεί να είναι μόνιμη. Συνέχεια;")) return;
 
   try {
     await request("/fleet", {
@@ -671,6 +675,7 @@ async function deleteVehicle(v) {
     showMessage("fleetMessage", error.message, true);
   }
 }
+
 
 $("exportButton").addEventListener("click", () => {
   if (role !== "admin" && role !== "supervisor") return;
